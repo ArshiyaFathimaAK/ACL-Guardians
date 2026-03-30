@@ -1,0 +1,22 @@
+[
+  {
+    "id": "seed-1",
+    "exerciseId": "squat",
+    "exerciseName": "Controlled Squat",
+    "angle": 82,
+    "frequencyHz": 0.5,
+    "risk": "safe",
+    "feedback": "Great control. Keep chest lifted.",
+    "timestamp": "2026-03-26T09:30:00.000Z"
+  },
+  {
+    "id": "seed-2",
+    "exerciseId": "jump-landing",
+    "exerciseName": "Jump Landing",
+    "angle": 102,
+    "frequencyHz": 1.3,
+    "risk": "high",
+    "feedback": "High impact pattern detected. Slow down and soften landing.",
+    "timestamp": "2026-03-27T16:10:00.000Z"
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "squat",
+    "name": "Controlled Squat",
+    "category": "Strength",
+    "description": "Build knee stability with controlled depth and neutral knee alignment.",
+    "targetAngleMin": 70,
+    "targetAngleMax": 95,
+    "targetFrequencyHz": 0.45,
+    "riskAngleAbove": 110,
+    "riskFrequencyAbove": 0.9,
+    "focusCue": "Knees track over second toe"
+  },
+  {
+    "id": "jump-landing",
+    "name": "Jump Landing",
+    "category": "Plyometric",
+    "description": "Practice soft landings with symmetrical load and good knee control.",
+    "targetAngleMin": 55,
+    "targetAngleMax": 80,
+    "targetFrequencyHz": 0.7,
+    "riskAngleAbove": 95,
+    "riskFrequencyAbove": 1.2,
+    "focusCue": "Land softly, avoid knee collapse"
+  },
+  {
+    "id": "lateral-cut",
+    "name": "Lateral Cut Drill",
+    "category": "Agility",
+    "description": "Train change-of-direction mechanics while protecting the ACL.",
+    "targetAngleMin": 40,
+    "targetAngleMax": 70,
+    "targetFrequencyHz": 0.85,
+    "riskAngleAbove": 85,
+    "riskFrequencyAbove": 1.4,
+    "focusCue": "Keep trunk centered, plant with control"
+  },
+  {
+    "id": "single-leg-hop",
+    "name": "Single-Leg Hop",
+    "category": "Balance",
+    "description": "Improve unilateral stability and deceleration control.",
+    "targetAngleMin": 45,
+    "targetAngleMax": 72,
+    "targetFrequencyHz": 0.55,
+    "riskAngleAbove": 88,
+    "riskFrequencyAbove": 1,
+    "focusCue": "Knee stays aligned over ankle"
+  }
+]
