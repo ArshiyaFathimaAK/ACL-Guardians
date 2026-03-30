@@ -1,3 +1,3 @@
 # ACL Guardian: Smart Knee Posture Monitor for Women
-## Hardware
-Microcontroller code belongs here
+## CAD Design
+CAD files belongs here
