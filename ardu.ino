@@ -1,97 +1,128 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL343.h>
+#include <string.h>
 
 #define LED_PIN 9
-#define BUZZER_PIN 8
+#define BUZZER_PIN 10
 
-// Create two ADXL343 objects with different I2C addresses
-Adafruit_ADXL343 accel1 = Adafruit_ADXL343(12345); // ACC1, SDO->GND, addr=0x53
-Adafruit_ADXL343 accel2 = Adafruit_ADXL343(54321); // ACC2, SDO->VCC, addr=0x1D
+// Above knee (SDO -> GND => 0x53), below knee (SDO -> VCC => 0x1D)
+Adafruit_ADXL343 accelAbove = Adafruit_ADXL343(12345);
+Adafruit_ADXL343 accelBelow = Adafruit_ADXL343(54321);
 
-// Thresholds (adjust after testing)
-#define REST_Z_MIN -2 
-#define REST_Z_MAX 2
-#define GOOD_SQUAT_Z_MIN 4
-#define GOOD_SQUAT_Z_MAX 8
-#define BAD_SQUAT_Z_MAX 3
+// Thresholds used by both firmware and app.
+const float GOOD_Y2_MAX = 5.0;
+const float BAD_Y2_MIN = 7.0;
 
-unsigned long lastBlinkMs = 0;
-bool blinkOn = false;
-const char *prevState = "rest";
+unsigned long lastBadPulseMs = 0;
+bool badPulseOn = false;
+const char *previousState = "good";
 
 void setup() {
   Serial.begin(9600);
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
 
-  // Initialize first accelerometer
-  if (!accel1.begin(0x53)) {
-    Serial.println("Error: ACC1 not found!");
-    while (1);
+  if (!accelAbove.begin(0x53)) {
+    Serial.println("{\"status\":\"error\",\"message\":\"ACC_ABOVE not found\"}");
+    while (1) {
+    }
   }
-  accel1.setRange(ADXL343_RANGE_16_G);
+  accelAbove.setRange(ADXL343_RANGE_16_G);
 
-  // Initialize second accelerometer
-  if (!accel2.begin(0x1D)) {
-    Serial.println("Error: ACC2 not found!");
-    while (1);
+  if (!accelBelow.begin(0x1D)) {
+    Serial.println("{\"status\":\"error\",\"message\":\"ACC_BELOW not found\"}");
+    while (1) {
+    }
   }
-  accel2.setRange(ADXL343_RANGE_16_G);
+  accelBelow.setRange(ADXL343_RANGE_16_G);
 
-  Serial.println("Both ADXL343 sensors ready!");
+  Serial.println("{\"status\":\"ready\",\"sensor\":\"ADXL343_dual\"}");
 }
 
 void loop() {
-  sensors_event_t event1, event2;
-  accel1.getEvent(&event1);
-  accel2.getEvent(&event2);
+  sensors_event_t upperEvent, lowerEvent;
+  accelAbove.getEvent(&upperEvent);
+  accelBelow.getEvent(&lowerEvent);
 
-  float z1 = event1.acceleration.z; // e.g., above knee
-  float z2 = event2.acceleration.z; // e.g., below knee
+  float x1 = upperEvent.acceleration.x;
+  float y1 = upperEvent.acceleration.y;
+  float z1 = upperEvent.acceleration.z;
+
+  float x2 = lowerEvent.acceleration.x;
+  float y2 = lowerEvent.acceleration.y;
+  float z2 = lowerEvent.acceleration.z;
+
+  float diff = y2 - y1;
 
   const char *state = "warning";
 
-  // Example logic: both must be in GOOD range for a good squat
-  if ((z1 >= GOOD_SQUAT_Z_MIN && z1 <= GOOD_SQUAT_Z_MAX) &&
-      (z2 >= GOOD_SQUAT_Z_MIN && z2 <= GOOD_SQUAT_Z_MAX)) {
+  if (y2 <= GOOD_Y2_MAX) {
+    state = "good";
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else if (y2 >= BAD_Y2_MIN) {
+    state = "bad";
+
+    unsigned long now = millis();
+    if (now - lastBadPulseMs >= 120) {
+      badPulseOn = !badPulseOn;
+      lastBadPulseMs = now;
+    }
+
+    digitalWrite(LED_PIN, badPulseOn ? HIGH : LOW);
+    digitalWrite(BUZZER_PIN, badPulseOn ? HIGH : LOW);
+  } else {
+    state = "warning";
     digitalWrite(LED_PIN, HIGH);
     digitalWrite(BUZZER_PIN, LOW);
-    state = "good";
-  } 
-  else if ((z1 < BAD_SQUAT_Z_MAX) || (z2 < BAD_SQUAT_Z_MAX)) {
-    // Bad squat → blink
-    unsigned long now = millis();
-    if (now - lastBlinkMs >= 120) {
-      blinkOn = !blinkOn;
-      lastBlinkMs = now;
-    }
-    digitalWrite(LED_PIN, blinkOn ? HIGH : LOW);
-    digitalWrite(BUZZER_PIN, blinkOn ? HIGH : LOW);
-    state = "bad";
-  } 
-  else if ((z1 >= REST_Z_MIN && z1 <= REST_Z_MAX) &&
-           (z2 >= REST_Z_MIN && z2 <= REST_Z_MAX)) {
-    digitalWrite(LED_PIN, LOW);
-    digitalWrite(BUZZER_PIN, LOW);
-    state = "rest";
-  } 
-  else {
-    digitalWrite(LED_PIN, LOW);
-    digitalWrite(BUZZER_PIN, LOW);
-    state = "warning";
   }
 
-  prevState = state;
+  // Single short warning beep only when entering warning state.
+  if (strcmp(state, "warning") == 0 && strcmp(previousState, "warning") != 0) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(80);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
 
-  // Serial output for debugging / backend
-  Serial.print("{\"state\":\"");
+  previousState = state;
+
+  // Structured JSON line for backend/app.
+  Serial.print("{\"status\":\"ok\",\"sensor\":\"ADXL343_dual\",\"state\":\"");
   Serial.print(state);
-  Serial.print("\",\"accel1_z\":");
-  Serial.print(z1, 2);
-  Serial.print(",\"accel2_z\":");
-  Serial.print(z2, 2);
-  Serial.println("}");
+  Serial.print("\",\"t_ms\":");
+  Serial.print(millis());
 
-  delay(100); // 10 Hz loop
+  Serial.print(",\"accelerometer\":{\"x\":");
+  Serial.print(x2, 4);
+  Serial.print(",\"y\":");
+  Serial.print(y2, 4);
+  Serial.print(",\"z\":");
+  Serial.print(z2, 4);
+  Serial.print("}");
+
+  Serial.print(",\"knee\":{\"x1\":");
+  Serial.print(x1, 4);
+  Serial.print(",\"y1\":");
+  Serial.print(y1, 4);
+  Serial.print(",\"z1\":");
+  Serial.print(z1, 4);
+  Serial.print(",\"x2\":");
+  Serial.print(x2, 4);
+  Serial.print(",\"y2\":");
+  Serial.print(y2, 4);
+  Serial.print(",\"z2\":");
+  Serial.print(z2, 4);
+  Serial.print(",\"diff\":");
+  Serial.print(diff, 4);
+  Serial.print("}");
+
+  Serial.print(",\"thresholds\":{\"goodY2Max\":");
+  Serial.print(GOOD_Y2_MAX, 2);
+  Serial.print(",\"badY2Min\":");
+  Serial.print(BAD_Y2_MIN, 2);
+  Serial.print("}}");
+
+  Serial.println();
+  delay(100);
 }
